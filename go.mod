@@ -9,6 +9,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/go-cloud v0.1.1
 	github.com/google/uuid v1.1.2
+	github.com/magiconair/properties v1.8.1
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1

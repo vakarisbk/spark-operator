@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/alternatesubmit"
 	"os/exec"
 	"time"
 
@@ -483,41 +484,41 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 }
 
 // State Machine for SparkApplication:
-//+--------------------------------------------------------------------------------------------------------------------+
-//|        +---------------------------------------------------------------------------------------------+             |
-//|        |       +----------+                                                                          |             |
-//|        |       |          |                                                                          |             |
-//|        |       |          |                                                                          |             |
-//|        |       |Submission|                                                                          |             |
-//|        |  +---->  Failed  +----+------------------------------------------------------------------+  |             |
-//|        |  |    |          |    |                                                                  |  |             |
-//|        |  |    |          |    |                                                                  |  |             |
-//|        |  |    +----^-----+    |  +-----------------------------------------+                     |  |             |
-//|        |  |         |          |  |                                         |                     |  |             |
-//|        |  |         |          |  |                                         |                     |  |             |
-//|      +-+--+----+    |    +-----v--+-+          +----------+           +-----v-----+          +----v--v--+          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
-//|                     |         |                      |                      |                                      |
-//|                     |         |                      |                      |                                      |
-//|    +------------+   |         |             +-------------------------------+                                      |
-//|    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
-//|    |            |   |   |  Pending  |       |        |                |           |          |          |          |
-//|    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +---------->Completed |          |
-//|    |Invalidating|       |           <-------+                         |           |          |          |          |
-//|    |            +------->           |       |                         |           |          |          |          |
-//|    |            |       |           |       |                         |           |          |          |          |
-//|    |            |       +-----------+       |                         +-----+-----+          +----------+          |
-//|    +------------+                           |                               |                                      |
-//|                                             |                               |                                      |
-//|                                             +-------------------------------+                                      |
-//|                                                                                                                    |
-//+--------------------------------------------------------------------------------------------------------------------+
+// +--------------------------------------------------------------------------------------------------------------------+
+// |        +---------------------------------------------------------------------------------------------+             |
+// |        |       +----------+                                                                          |             |
+// |        |       |          |                                                                          |             |
+// |        |       |          |                                                                          |             |
+// |        |       |Submission|                                                                          |             |
+// |        |  +---->  Failed  +----+------------------------------------------------------------------+  |             |
+// |        |  |    |          |    |                                                                  |  |             |
+// |        |  |    |          |    |                                                                  |  |             |
+// |        |  |    +----^-----+    |  +-----------------------------------------+                     |  |             |
+// |        |  |         |          |  |                                         |                     |  |             |
+// |        |  |         |          |  |                                         |                     |  |             |
+// |      +-+--+----+    |    +-----v--+-+          +----------+           +-----v-----+          +----v--v--+          |
+// |      |         |    |    |          |          |          |           |           |          |          |          |
+// |      |         |    |    |          |          |          |           |           |          |          |          |
+// |      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
+// |      |         |    |    |          |          |          |           |           |          |          |          |
+// |      |         |    |    |          |          |          |           |           |          |          |          |
+// |      |         |    |    |          |          |          |           |           |          |          |          |
+// |      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
+// |                     |         |                      |                      |                                      |
+// |                     |         |                      |                      |                                      |
+// |    +------------+   |         |             +-------------------------------+                                      |
+// |    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
+// |    |            |   |   |  Pending  |       |        |                |           |          |          |          |
+// |    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +---------->Completed |          |
+// |    |Invalidating|       |           <-------+                         |           |          |          |          |
+// |    |            +------->           |       |                         |           |          |          |          |
+// |    |            |       |           |       |                         |           |          |          |          |
+// |    |            |       +-----------+       |                         +-----+-----+          +----------+          |
+// |    +------------+                           |                               |                                      |
+// |                                             |                               |                                      |
+// |                                             +-------------------------------+                                      |
+// |                                                                                                                    |
+// +--------------------------------------------------------------------------------------------------------------------+
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -718,20 +719,21 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	driverPodName := getDriverPodName(app)
 	driverInfo.PodName = driverPodName
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
-		}
-		return app
-	}
+	//submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	//if err != nil {
+	//	app.Status = v1beta2.SparkApplicationStatus{
+	//		AppState: v1beta2.ApplicationState{
+	//			State:        v1beta2.FailedSubmissionState,
+	//			ErrorMessage: err.Error(),
+	//		},
+	//		SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
+	//		LastSubmissionAttemptTime: metav1.Now(),
+	//	}
+	//	return app
+	//}
+	submitted, err := alternatesubmit.RunAltSparkSubmit(app, submissionID, c.kubeClient)
 	// Try submitting the application by running spark-submit.
-	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
+	//submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
 		app.Status = v1beta2.SparkApplicationStatus{
 			AppState: v1beta2.ApplicationState{
