@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"strconv"
 	"time"
@@ -47,6 +48,7 @@ import (
 	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
+	"github.com/kubeflow/spark-operator/pkg/alternatesubmit"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
 )
@@ -752,10 +754,27 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+
+	//TODO: MOVE THIS TO A FUNC
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		logger.Error(err, "failed to get kube config")
+		os.Exit(1)
+	}
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		logger.Error(err, "failed to create clientset")
+		os.Exit(1)
+	}
+
+	if err := alternatesubmit.RunAltSparkSubmit(app, app.Status.SubmissionID, clientset); err != nil {
 		r.recordSparkApplicationEvent(app)
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
+	//if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+	//	r.recordSparkApplicationEvent(app)
+	//	return fmt.Errorf("failed to run spark-submit: %v", err)
+	//}
 	return nil
 }
 
