@@ -40,7 +40,7 @@ func RunAltSparkSubmit(app *v1beta2.SparkApplication, submissionID string, kubeC
 	//Update Application CRD Instance with Submission ID
 	app.Status.SubmissionID = submissionID
 
-	//Create Service Labels by aggregating Spark Application Specification level, driver specification level and dynamic lables
+	//Create Service Labels by aggregating Spark Application Specification level, driver specification level and dynamic labels
 	serviceLabels := map[string]string{common.LabelSparkAppName: app.Name}
 	serviceLabels[SparkAppName] = app.Name
 	serviceLabels[common.LabelSparkApplicationSelector] = createdApplicationId

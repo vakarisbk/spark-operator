@@ -62,7 +62,7 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 
 	args = args + fmt.Sprintf("%s=%s", common.SparkKubernetesNamespace, app.Namespace) + NewLineString
 
-	args = args + fmt.Sprintf("%s=%s", common.LabelSparkAppName, app.Name) + NewLineString
+	args = args + fmt.Sprintf("%s=%s", common.SparkAppName, app.Name) + NewLineString
 
 	args = args + fmt.Sprintf("%s=%s", common.SparkKubernetesDriverPodName, driverPodName) + NewLineString
 
@@ -137,11 +137,11 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName, app.Name) + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName) + "=" + app.Name + NewLineString
 	//driverConfOptions = append(driverConfOptions,
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator, "true") + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator) + "=" + "true" + NewLineString
 
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID, submissionID) + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID) + "=" + submissionID + NewLineString
 
 	if app.Spec.Driver.Image != nil {
 		args = args + fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, *app.Spec.Driver.Image) + NewLineString
@@ -206,47 +206,45 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 	}
 
 	for key, value := range driverLabels {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverLabelTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, key) + ":" + value + NewLineString
 	}
 	for key, value := range app.Spec.Driver.Annotations {
 		if key == OpencensusPrometheusTarget {
 			value = strings.Replace(value, "\n", "", -1)
 			value = AddEscapeCharacter(value)
 		}
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverAnnotationTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverAnnotationTemplate, key) + "=" + value + NewLineString
 	}
 
 	for key, value := range app.Spec.Driver.EnvSecretKeyRefs {
-		args = args + fmt.Sprintf("%s%s=%s:%s", common.SparkKubernetesDriverSecretKeyRefTemplate, key, value.Name, value.Key) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverSecretKeyRefTemplate, key) + "=" + value.Name + ":" + value.Key + NewLineString
 	}
 
 	for key, value := range app.Spec.Driver.ServiceAnnotations {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverServiceAnnotationTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverServiceAnnotationTemplate, key) + "=" + value + NewLineString
 	}
 
 	//driverConfOptions = append(driverConfOptions, GetDriverSecretConfOptions(app)...)
 	for _, s := range app.Spec.Driver.Secrets {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverSecretsTemplate, s.Name, s.Path) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverSecretsTemplate, s.Name) + "=" + s.Path + NewLineString
 		//secretConfOptions = append(secretConfOptions, conf)
 		if s.Type == v1beta2.SecretTypeGCPServiceAccount {
 			args = args + fmt.Sprintf(
-				"%s%s=%s",
 				common.SparkKubernetesDriverEnvTemplate,
-				common.EnvGoogleApplicationCredentials,
-				filepath.Join(s.Path, common.ServiceAccountJSONKeyFileName)) + NewLineString
+				common.EnvGoogleApplicationCredentials) + "=" +
+				filepath.Join(s.Path, common.ServiceAccountJSONKeyFileName) + NewLineString
 
 		} else if s.Type == v1beta2.SecretTypeHadoopDelegationToken {
 			args = args + fmt.Sprintf(
-				"%s%s=%s",
 				common.SparkKubernetesDriverEnvTemplate,
-				common.EnvHadoopTokenFileLocation,
-				filepath.Join(s.Path, common.HadoopDelegationTokenFileName)) + NewLineString
+				common.EnvHadoopTokenFileLocation) + "=" +
+				filepath.Join(s.Path, common.HadoopDelegationTokenFileName) + NewLineString
 
 		}
 	}
 
 	for key, value := range app.Spec.Driver.EnvVars {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverEnvTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, key) + "=" + value + NewLineString
 
 	}
 
@@ -254,11 +252,11 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 		args = args + fmt.Sprintf("%s%d=%s", common.SparkKubernetesDriverEnvTemplate, key, value) + NewLineString
 	}
 
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkAppName, app.Name) + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkAppName) + "=" + app.Name + NewLineString
 
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator, "true") + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator) + "=" + "true" + NewLineString
 
-	args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID, submissionID) + NewLineString
+	args = args + fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID) + "=" + submissionID + NewLineString
 
 	if app.Spec.Executor.Instances != nil {
 		args = args + fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances) + NewLineString
@@ -329,7 +327,7 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 		executorLabels[key] = value
 	}
 	for key, value := range executorLabels {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorLabelTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key) + "=" + value + NewLineString
 	}
 	for key, value := range app.Spec.Executor.Annotations {
 		if key == OpencensusPrometheusTarget {
@@ -337,11 +335,11 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 			value = AddEscapeCharacter(value)
 		}
 
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorAnnotationTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesExecutorAnnotationTemplate, key) + "=" + value + NewLineString
 	}
 
 	for key, value := range app.Spec.Executor.EnvSecretKeyRefs {
-		args = args + fmt.Sprintf("%s%s=%s:%s", common.SparkKubernetesExecutorSecretKeyRefTemplate, key, value.Name, value.Key) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesExecutorSecretKeyRefTemplate, key) + "=" + value.Name + ":" + value.Key + NewLineString
 	}
 
 	if app.Spec.Executor.JavaOptions != nil {
@@ -350,7 +348,7 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 
 	//executorConfOptions = append(executorConfOptions, GetExecutorSecretConfOptions(app)...)
 	for _, s := range app.Spec.Executor.Secrets {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorSecretsTemplate, s.Name, s.Path) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesExecutorSecretsTemplate, s.Name) + "=" + s.Path + NewLineString
 
 		if s.Type == v1beta2.SecretTypeGCPServiceAccount {
 			args = args + fmt.Sprintf(
@@ -393,7 +391,7 @@ func buildAltSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName 
 	}
 
 	for key, value := range app.Spec.NodeSelector {
-		args = args + fmt.Sprintf("%s%s=%s", common.SparkKubernetesNodeSelectorTemplate, key, value) + NewLineString
+		args = args + fmt.Sprintf(common.SparkKubernetesNodeSelectorTemplate, key) + "=" + value + NewLineString
 
 	}
 

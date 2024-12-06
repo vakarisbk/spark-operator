@@ -142,11 +142,12 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 }
 
 func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	//if !util.IsDriverPod(pod) {
-	//return nil
-	//}
-	//ownerReference := util.GetOwnerReference(app)
-	//pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, ownerReference)
+	if !util.IsDriverPod(pod) {
+		return nil
+	}
+	ownerReference := util.GetOwnerReference(app)
+	pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, ownerReference)
+	
 	return nil
 }
 
